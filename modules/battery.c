@@ -33,8 +33,8 @@ static void refresh(char *output, struct udev_device *dev, const char *fmt) {
 }
 
 static void monitor(struct udev *udev, char *output, BatteryOptions *opts) {
-    struct udev_device *bat = getsupply(udev, opts->name);
-    if(!bat) {
+    struct udev_device *bat;
+    if(!(bat = getsupply(udev, opts->name))) {
         ERR("failed to open battery '%s'", opts->name);
         return;
     }
