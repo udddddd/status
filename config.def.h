@@ -6,8 +6,8 @@ XKBOptions xkb1 = {
 	.format = "Layout: %s",
 };
 
-BrightnessOptions bri1 = {
-	.format = "Brightness: %p%%",
+BrightnessOptions light1 = {
+	.format = "Backlight: %p%%",
 	.name   = "amdgpu_bl0",
 };
 
@@ -50,11 +50,11 @@ WpaOptions wpa1 = {
 const char separator[] = " ";
 
 Module modules[] = {
-	{ date,       &time1 },
-	{ xkb,        &xkb1  },
-	{ brightness, &bri1  },
-	{ battery,    &bat1  },
-	{ alsa,       &alsa1 },
-	{ cmus,       &cmus1 },
-	{ wpa,        &wpa1  },
+	{ date,       &time1  },
+	{ xkb,        &xkb1   },
+	{ backlight , &light1 },
+	{ battery,    &bat1   },
+	{ alsa,       &alsa1  },
+	{ cmus,       &cmus1  },
+	{ wpa,        &wpa1   },
 };

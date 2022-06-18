@@ -1,8 +1,8 @@
 #pragma once
 
-typedef struct BrightnessOptions {
+typedef struct BacklightOptions {
 	const char *format;
 	const char *name;
-} BrightnessOptions;
+} BacklightOptions;
 
-void brightness(char *output, void *arg);
+void backlight(char *output, void *arg);
