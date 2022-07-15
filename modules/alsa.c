@@ -90,7 +90,8 @@ static int jackplug(snd_hctl_elem_t *elem, unsigned int mask) {
 static int run(char *output, AlsaOptions *opts, AlsaCtx *ctx) {
 	int plugged  = get_bool(ctx->jack);
 	double hpvol = get_normalized_playback_volume(ctx->headphone, 0);
-	double spvol = get_normalized_playback_volume(ctx->speaker, 0);
+	double spvol = get_normalized_playback_volume(ctx->speaker,   0);
+	int mute = 0;
 
 	snd_hctl_elem_set_callback(ctx->jack,       jackplug);
 	snd_mixer_elem_set_callback(ctx->speaker,   volumechange);
@@ -102,9 +103,12 @@ static int run(char *output, AlsaOptions *opts, AlsaCtx *ctx) {
 
 	for(;;) {
 		int vol = lrint((plugged ? hpvol : spvol) * 100);
+		snd_mixer_selem_get_playback_switch(
+			plugged ? ctx->headphone : ctx->speaker, 0, &mute);
+		mute = !mute << 1;
 		LOG("%lf %lf %d", hpvol, spvol, vol);
 		fmt_opt fmtopts[] = { { 'p', FmtTypeInteger, &vol } };
-		msnfmt(output, opts->format[plugged], fmtopts, LEN(fmtopts));
+		msnfmt(output, opts->format[plugged | mute], fmtopts, LEN(fmtopts));
 		if(snd_mixer_wait(ctx->mixer, -1))
 			break;
 		snd_mixer_handle_events(ctx->mixer);

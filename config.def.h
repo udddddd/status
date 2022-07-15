@@ -23,8 +23,10 @@ BatteryOptions bat1 = {
 AlsaOptions alsa1 = {
 	.card = "default",
 	.format = {
-		[HEADPHONE_UNPLUGGED] = "Headphone: %p%%",
-		[HEADPHONE_PLUGGED] = "Speaker: %p%%",
+		[HEADPHONE_UNPLUGGED        ] = "Headphone: %p%%",
+		[HEADPHONE_PLUGGED          ] = "Speaker: %p%%",
+		[HEADPHONE_UNPLUGGED | MUTED] = "Headphone! %p%%",
+		[HEADPHONE_PLUGGED   | MUTED] = "Speaker! %p%%",
 	},
 	.speaker   = "Speaker",
 	.headphone = "Headphone",
