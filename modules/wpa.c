@@ -124,6 +124,8 @@ void wpa(char *output, void *arg) {
 	if(wpa_connect(&comm, opts->ifpath) || wpa_connect(&notif, opts->ifpath)
 	|| attach(notif.fp)) {
 		ERR("failed to connect");
+		unlink(comm.path);
+		unlink(notif.path);
 		return;
 	}
 	pfd.fd = fileno(notif.fp);
