@@ -32,6 +32,8 @@ static void monitor(struct udev *udev, char *output, const char *target,
     struct pollfd fd = { .fd = udev_monitor_get_fd(mon), .events = POLLIN };
 	int ret;
 	while((ret = poll(&fd, 1, -1)) != -1) {
+		if(fd.revents & POLLHUP)
+			break;
         if(fd.revents & POLLIN) {
             struct udev_device *dev = udev_monitor_receive_device(mon);
             if(!strcmp(target, udev_device_get_syspath(dev)))

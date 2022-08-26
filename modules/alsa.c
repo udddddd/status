@@ -15,7 +15,8 @@ typedef struct AlsaCtx {
 	snd_mixer_elem_t *headphone, *speaker;
 } AlsaCtx;
 
-static snd_hctl_elem_t *find_elem(snd_hctl_t *hctl, unsigned int iface, const char *name) {
+static snd_hctl_elem_t *find_elem(snd_hctl_t *hctl, unsigned int iface,
+  const char *name) {
 	snd_ctl_elem_id_t *id;
 	snd_ctl_elem_id_alloca(&id);
 	snd_ctl_elem_id_set_interface(id, iface);

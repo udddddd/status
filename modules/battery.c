@@ -47,6 +47,8 @@ static void monitor(struct udev *udev, char *output, BatteryOptions *opts) {
 	int ret;
 	while((ret = poll(&fd, 1, opts->interval * 1000)) != -1) {
 		int shouldrefresh = !ret;
+		if(fd.revents & POLLHUP)
+			break;
         if(fd.revents & POLLIN) {
             bat = udev_monitor_receive_device(mon);
 			shouldrefresh |= !strcmp(udev_device_get_sysname(bat), opts->name);
