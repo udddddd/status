@@ -12,6 +12,7 @@
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 
 static sig_atomic_t refresh = 0;
+static int signo = 0;
 void sigusr1(int signum) {
 	refresh = 1;
 }
@@ -19,6 +20,8 @@ void sigusr1(int signum) {
 sig_atomic_t quit = 0;
 void shutdown(int signum) {
 	quit = 1;
+	LOG("want to shutdown from %d (%lu)", signum, pthread_self());
+	signo = signum;
 }
 
 typedef struct Module {
@@ -76,12 +79,13 @@ int main(int argc, char **argv) {
 
 	sigaction(SIGTERM, &(struct sigaction){ .sa_handler = shutdown }, NULL);
 	sigaction(SIGINT,  &(struct sigaction){ .sa_handler = shutdown }, NULL);
+	sigaction(SIGPIPE, &(struct sigaction){ .sa_handler = shutdown }, NULL);
+	sigaction(SIGHUP,  &(struct sigaction){ .sa_handler = shutdown }, NULL);
 
 	sigset_t sigset;
-	sigemptyset(&sigset);
-	sigaddset(&sigset, SIGUSR1);
-	sigaddset(&sigset, SIGUSR2);
-	pthread_sigmask(SIG_BLOCK, &sigset, NULL);
+	sigfillset(&sigset);
+	sigdelset(&sigset, SIGINT);
+	pthread_sigmask(SIG_SETMASK, &sigset, NULL);
 
 	LOG("%lu modules", LEN(modules));
 
@@ -90,14 +94,15 @@ int main(int argc, char **argv) {
 		pthread_create(threads + i, &pthread_attr, pthread_runner, modules + i);
 	pthread_attr_destroy(&pthread_attr);
 
+	sigemptyset(&sigset);
 	signal(SIGUSR1, SIG_IGN);
-	sigdelset(&sigset, SIGUSR2);
-	pthread_sigmask(SIG_UNBLOCK, &sigset, NULL);
+	pthread_sigmask(SIG_SETMASK, &sigset, NULL);
 
 	usleep(10000);
 	sigaction(SIGUSR1, &(struct sigaction){ .sa_handler = sigusr1 }, NULL);
 
 	LOG("ready");
+	LOG("main thread %lu", pthread_self());
 
 	for(;;) {
 		if(quit)
@@ -117,11 +122,12 @@ int main(int argc, char **argv) {
 			XSync(dpy, False);
 		} else {
 			*p = '\n';
-			write(STDOUT_FILENO, status, p - status + 1);
+			if(write(STDOUT_FILENO, status, p - status + 1) == -1)
+				break;
 		}
 		pause();
 	}
-	LOG("terminated by signal");
+	LOG("terminated by signal %d", signo);
 	for(unsigned int i = 0; i < LEN(modules); ++i)
 		pthread_kill(threads[i], SIGINT);
 	for(unsigned int i = 0; i < LEN(modules); ++i) {
