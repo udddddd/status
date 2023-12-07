@@ -96,6 +96,7 @@ int main(int argc, char **argv) {
 
 	sigemptyset(&sigset);
 	signal(SIGUSR1, SIG_IGN);
+	sigaddset(&sigset, SIGUSR2);
 	pthread_sigmask(SIG_SETMASK, &sigset, NULL);
 
 	usleep(10000);
