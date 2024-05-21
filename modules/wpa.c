@@ -90,15 +90,17 @@ static int update(WpaCtx *ctx, Stream *comm) {
 		}
 		if(!strcmp(line, "ip_address")) {
 			strcpy(ctx->ipaddr, value);
+			LOG("got ip %s", ctx->ipaddr);
 			have_ip = true;
 		}
 		if (!strcmp(line, "ssid")) {
 			strcpy(ctx->ssid, value);
+			LOG("got ssid %s", ctx->ssid);
 			have_ssid = true;
 		}
 	}
 	LOG("update ended");
-	return ctx->state == WPA_CONNECTED && (2 - have_ssid - have_ip);
+	return ctx->state != WPA_CONNECTED || (2 - have_ssid - have_ip);
 }
 
 static int attach(FILE *sock) {
