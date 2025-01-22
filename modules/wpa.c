@@ -4,6 +4,7 @@
 #include <assert.h>
 #include <string.h>
 #include <stdbool.h>
+#include <errno.h>
 #include <fcntl.h>
 
 #define MODULE_NAME "wpa"
@@ -73,17 +74,21 @@ static int update(WpaCtx *ctx, Stream *comm) {
 	struct pollfd pfd = { .fd = fileno(comm->fp), .events = POLLIN };
 	bool have_ssid = false, have_ip = false;
 	char line[512];
-	char *value;
+	char *value, *t;
 
 	LOG("update started");
-	fputs("STATUS", comm->fp);
-	fflush(comm->fp);
+	if(fputs("STATUS", comm->fp) == EOF || fflush(comm->fp) == EOF) {
+		if(errno == ECONNREFUSED)
+			return -1;
+	}
 	if(poll(&pfd, 1, 500) == 0)
 		LOG("timeout");
 	ctx->state = WPA_DISCONNECTED;
 	while(fgets(line, sizeof(line), comm->fp)) {
+		LOG("parsing line");
 		strtok_r(line, "=", &value);
-		*strchr(value, '\n') = '\0'; /* <<<< SEGFAULT ALERT >>>> */
+		t = strchr(value, '\n');
+		if(t) *t = '\0';
 		if (!strcmp(line, "wpa_state")) {
 			ctx->state = !strcmp(value, "COMPLETED") ? WPA_CONNECTED
 			                                         : WPA_DISCONNECTED;
@@ -114,33 +119,57 @@ static int attach(FILE *sock) {
 	return strncmp(buf, "OK\n", 3);
 }
 
-void wpa(char *output, void *arg) {
+static int runsession(char *output, WpaOptions *opts, Stream *comm, Stream *notif) {
 	struct pollfd pfd = { .fd = -1, .events = POLLIN };
-	WpaOptions * const opts = arg;
-	Stream comm, notif;
-	char buf[BUFSIZ];
 	int timeout = -1;
+	char buf[BUFSIZ];
 	WpaCtx ctx;
+	int ret = 0;
 
-	LOG("startup");
-	if(wpa_connect(&comm, opts->ifpath) || wpa_connect(&notif, opts->ifpath)
-	|| attach(notif.fp)) {
-		ERR("failed to connect");
-		unlink(comm.path);
-		unlink(notif.path);
-		return;
-	}
-	pfd.fd = fileno(notif.fp);
+	pfd.fd = fileno(notif->fp);
 	do {
 		/* during connection some properties are not available, so keep
 		 * querying status in small intervals until we get everything */
-		timeout = update(&ctx, &comm) ? 500 : -1;
+		ret = update(&ctx, comm);
+		if(ret < 0) {
+			ret = 0;
+			break;
+		} else {
+			timeout = ret ? 500 : -1;
+		}
 		print(output, opts->format[ctx.state], &ctx);
 		/* a dummy loop which flushes all events */
-		while(read(fileno(notif.fp), buf, sizeof(buf)) != -1);
-	} while(poll(&pfd, 1, timeout) != -1);
-	close_stream(&comm);
-	close_stream(&notif);
+		while((ret = read(pfd.fd, buf, sizeof(buf))) > 0);
+		if(ret == -1) {
+			LOG("dummy loop returned errno %d:", errno);
+			LOG("\t%s", strerror(errno));
+		}
+	} while((ret = poll(&pfd, 1, timeout)) != -1);
+	return ret;
+}
+
+void wpa(char *output, void *arg) {
+	WpaOptions * const opts = arg;
+	Stream comm, notif;
+	int ret;
+
+	LOG("startup");
+	for(;;) {
+		if(wpa_connect(&comm, opts->ifpath) || wpa_connect(&notif, opts->ifpath)
+		|| attach(notif.fp)) {
+			ERR("failed to connect");
+			unlink(comm.path);
+			unlink(notif.path);
+			sleep(5);
+			continue;
+		}
+		ret = runsession(output, opts, &comm, &notif);
+		LOG("session ended with code %d", ret);
+		close_stream(&comm);
+		close_stream(&notif);
+		if(ret < 0)
+			break;
+	}
 	LOG("shutdown");
-	return; 
+	return;
 }
